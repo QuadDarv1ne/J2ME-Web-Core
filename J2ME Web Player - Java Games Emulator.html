@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>J2ME Web Player - Java Games Emulator</title>
+<style>
+  :root {
+    --bg-body: #0d1117;
+    --bg-panel: #161b22;
+    --border: #30363d;
+    --accent: #238636;
+    --accent-hover: #2ea043;
+    --text: #c9d1d9;
+    --text-dim: #8b949e;
+    --key-bg: #21262d;
+    --key-active: #58a6ff;
+    --phone-bezel: #1f1f1f;
+    --phone-screen: #9ea792; 
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--bg-body);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+    padding-bottom: 40px;
+  }
+
+  header {
+    width: 100%;
+    max-width: 500px;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  h1 { font-size: 20px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; }
+  .badge { font-size: 10px; background: var(--border); padding: 2px 6px; border-radius: 4px; color: var(--text-dim); }
+
+  .device-wrapper {
+    background: var(--phone-bezel);
+    border-radius: 30px;
+    padding: 15px 15px 25px 15px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5), inset 0 0 0 2px #333;
+    max-width: 420px;
+    width: 95%;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    position: relative;
+  }
+
+  .screen-container {
+    background: #000;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    aspect-ratio: 240/320;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+    border: 2px solid #444;
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+    background: var(--phone-screen);
+  }
+
+  .overlay-msg {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.85);
+    color: #fff;
+    text-align: center;
+    padding: 20px;
+    transition: opacity 0.3s;
+    z-index: 10;
+  }
+  
+  .overlay-msg.hidden { opacity: 0; pointer-events: none; }
+  .overlay-icon { font-size: 40px; margin-bottom: 10px; }
+  .overlay-text { font-size: 14px; line-height: 1.4; color: var(--text-dim); }
+  .btn-upload-overlay {
+    margin-top: 15px;
+    padding: 8px 16px;
+    background: var(--accent);
+    border: none;
+    color: #fff;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  .controls-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr 1fr;
+    gap: 10px;
+    align-items: center;
+  }
+
+  /* Functional Keys Area */
+  .col-func { 
+    display: flex; 
+    flex-direction: column; 
+    gap: 12px; 
+    justify-content: space-between; 
+    height: 100%;
+    padding: 10px 0;
+  }
+  
+  .softkey {
+    height: 35px;
+    border-radius: 6px;
+    border: 1px solid #444;
+    background: linear-gradient(180deg, #333 0%, #222 100%);
+    color: #ccc;
+    font-size: 11px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 0 #111;
+    transition: all 0.1s;
+  }
+  
+  .softkey:active { transform: translateY(4px); box-shadow: none; background: #111; }
+
+  /* Centered Red Button */
+  .call-btn {
+    height: 45px;
+    width: 45px;
+    border-radius: 50%;
+    border: none;
+    color: #fff;
+    font-size: 18px;
+    cursor: pointer;
+    box-shadow: 0 4px 0 rgba(0,0,0,0.5);
+    transition: transform 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto; /* Center horizontally */
+  }
+  .call-btn:active { transform: translateY(4px); box-shadow: none; }
+  .btn-red { background: linear-gradient(180deg, #f44336 0%, #c62828 100%); }
+
+  /* D-Pad */
+  .col-dpad {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .dpad-circle {
+    width: 110px;
+    height: 110px;
+    background: #2a2a2a;
+    border-radius: 50%;
+    position: relative;
+    box-shadow: inset 0 2px 5px rgba(255,255,255,0.1), 0 5px 10px rgba(0,0,0,0.5);
+  }
+
+  .dpad-btn {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    background: #111;
+    border-radius: 4px;
+    cursor: pointer;
+    box-shadow: 0 2px 0 #000;
+  }
+  
+  .dpad-btn:active { background: var(--key-active); transform: scale(0.95); }
+  
+  .dpad-up { top: 5px; left: 40px; }
+  .dpad-down { bottom: 5px; left: 40px; }
+  .dpad-left { left: 5px; top: 40px; }
+  .dpad-right { right: 5px; top: 40px; }
+  .dpad-center { 
+    top: 40px; left: 40px; 
+    width: 30px; height: 30px; 
+    background: #222; border-radius: 50%; 
+    z-index: 2;
+  }
+
+  /* Numeric Keypad */
+  .col-num {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+
+  .num-btn {
+    aspect-ratio: 1;
+    background: var(--key-bg);
+    border: 1px solid #333;
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 3px 0 #000;
+    transition: all 0.1s;
+    line-height: 1;
+  }
+
+  .num-btn span { font-size: 8px; color: var(--text-dim); margin-top: 2px; font-weight: normal; }
+  .num-btn:active { transform: translateY(3px); box-shadow: none; background: #30363d; }
+
+  .action-bar {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    width: 100%;
+    max-width: 500px;
+  }
+
+  .ctrl-btn {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: 0.2s;
+  }
+
+  .ctrl-btn:hover { background: rgba(255,255,255,0.05); border-color: var(--text-dim); }
+  .ctrl-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .ctrl-btn.primary:hover { background: var(--accent-hover); }
+
+  #fileInput { display: none; }
+
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    padding: 10px 20px;
+    border-radius: 8px;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    font-size: 13px;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .keyboard-hint {
+    margin-top: 20px;
+    font-size: 11px;
+    color: var(--text-dim);
+    text-align: center;
+    max-width: 500px;
+    background: var(--bg-panel);
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+  }
+  .key-badge {
+    background: rgba(255,255,255,0.1);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-family: monospace;
+    color: #fff;
+  }
+
+  @media (max-width: 400px) {
+    .device-wrapper { width: 100%; border-radius: 0; height: 100vh; justify-content: center; }
+    .col-num { gap: 4px; }
+    .num-btn { font-size: 12px; }
+    header { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>
+    <span>☕</span> J2ME Web Player
+    <span class="badge">BETA</span>
+  </h1>
+  <div style="font-size: 12px; color: var(--text-dim);">Эмулятор Java-игр</div>
+</header>
+
+<div class="device-wrapper">
+  <div class="screen-container">
+    <canvas id="gameCanvas" width="240" height="320"></canvas>
+    
+    <div class="overlay-msg" id="startScreen">
+      <div class="overlay-icon">📱</div>
+      <div class="overlay-text">
+        Загрузите файл .JAR или .JAD<br>для запуска игры
+      </div>
+      <button class="btn-upload-overlay" onclick="document.getElementById('fileInput').click()">Выбрать файл</button>
+    </div>
+
+    <div class="overlay-msg hidden" id="loadingScreen">
+      <div class="overlay-icon">⏳</div>
+      <div class="overlay-text" id="loadingText">Инициализация...</div>
+    </div>
+  </div>
+
+  <div class="controls-grid">
+    <!-- Left Functional Keys -->
+    <div class="col-func">
+      <button class="softkey" data-key="SoftLeft">Меню</button>
+      
+      <!-- Red Call End Button (Centered vertically via flex in parent) -->
+      <button class="call-btn btn-red" data-key="End" title="Назад / Отмена">🗙</button>
+      
+      <button class="softkey" data-key="SoftRight">Назад</button>
+    </div>
+
+    <!-- D-Pad -->
+    <div class="col-dpad">
+      <div class="dpad-circle">
+        <div class="dpad-btn dpad-up" data-key="Up"></div>
+        <div class="dpad-btn dpad-down" data-key="Down"></div>
+        <div class="dpad-btn dpad-left" data-key="Left"></div>
+        <div class="dpad-btn dpad-right" data-key="Right"></div>
+        <div class="dpad-btn dpad-center" data-key="Fire"></div>
+      </div>
+    </div>
+
+    <!-- Numeric Keypad -->
+    <div class="col-num">
+      <button class="num-btn" data-key="Num1">1<span>&nbsp;</span></button>
+      <button class="num-btn" data-key="Num2">2<span>ABC</span></button>
+      <button class="num-btn" data-key="Num3">3<span>DEF</span></button>
+      <button class="num-btn" data-key="Num4">4<span>GHI</span></button>
+      <button class="num-btn" data-key="Num5">5<span>JKL</span></button>
+      <button class="num-btn" data-key="Num6">6<span>MNO</span></button>
+      <button class="num-btn" data-key="Num7">7<span>PQRS</span></button>
+      <button class="num-btn" data-key="Num8">8<span>TUV</span></button>
+      <button class="num-btn" data-key="Num9">9<span>WXYZ</span></button>
+      <button class="num-btn" data-key="Star">*</button>
+      <button class="num-btn" data-key="Num0">0<span>+</span></button>
+      <button class="num-btn" data-key="Hash">#</button>
+    </div>
+  </div>
+</div>
+
+<div class="action-bar">
+  <button class="ctrl-btn" onclick="toggleFullscreen()">⛶ Полный экран</button>
+  <button class="ctrl-btn" onclick="resetEmulation()">🔄 Сброс</button>
+  <button class="ctrl-btn primary" onclick="document.getElementById('fileInput').click()">📂 Открыть .JAR</button>
+</div>
+
+<input type="file" id="fileInput" accept=".jar,.jad">
+
+<div class="keyboard-hint">
+  <p>Управление с клавиатуры:</p>
+  <p>
+    Стрелки: D-Pad | Enter: OK | Backspace: SoftRight | 
+    Цифры: 0-9
+  </p>
+</div>
+
+<div class="toast" id="toast">Сообщение</div>
+
+<script>
+/**
+ * J2ME Web Player Interface
+ */
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const startScreen = document.getElementById('startScreen');
+const loadingScreen = document.getElementById('loadingScreen');
+const loadingText = document.getElementById('loadingText');
+const fileInput = document.getElementById('fileInput');
+const toastEl = document.getElementById('toast');
+
+let isRunning = false;
+let currentGameName = '';
+let animationFrameId;
+let lastKey = '';
+let keyHistory = [];
+
+const screenBuffer = []; 
+
+// ============================
+// Инициализация
+// ============================
+function init() {
+  drawBootscreen();
+}
+
+function drawBootscreen() {
+  ctx.fillStyle = '#9ea792';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  ctx.fillStyle = '#000';
+  ctx.font = 'bold 20px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('NOKIA', canvas.width/2, 100);
+  
+  ctx.font = '12px sans-serif';
+  ctx.fillText('Java System', canvas.width/2, 120);
+  
+  ctx.font = '10px monospace';
+  const date = new Date();
+  ctx.fillText(date.toLocaleTimeString(), canvas.width/2, 300);
+}
+
+// ============================
+// Управление файлами
+// ============================
+fileInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext !== 'jar' && ext !== 'jad') {
+    showToast('Пожалуйста, выберите файл .JAR или .JAD');
+    return;
+  }
+
+  loadGame(file);
+});
+
+function loadGame(file) {
+  startScreen.classList.add('hidden');
+  loadingScreen.classList.remove('hidden');
+  loadingText.textContent = `Загрузка ${file.name}...`;
+  currentGameName = file.name;
+
+  setTimeout(() => {
+    loadingText.textContent = 'Инициализация MIDlet...';
+  }, 800);
+
+  setTimeout(() => {
+    loadingScreen.classList.add('hidden');
+    startGameLoop();
+    showToast('Игра запущена (Режим эмуляции UI)');
+  }, 2000);
+}
+
+// ============================
+// Игровой цикл (Имитация)
+// ============================
+function startGameLoop() {
+  isRunning = true;
+  
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  loop();
+}
+
+function loop() {
+  if (!isRunning) return;
+
+  drawSimulation();
+  
+  animationFrameId = requestAnimationFrame(loop);
+}
+
+function drawSimulation() {
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = '#fff';
+  ctx.font = '12px monospace';
+  ctx.textAlign = 'left';
+  
+  ctx.fillText(`GAME: ${currentGameName.substring(0, 15)}...`, 5, 15);
+  ctx.fillText(`MEM:  2048KB Free`, 5, 30);
+  ctx.fillText(`FPS:  60`, 5, 45);
+  
+  if (lastKey) {
+    ctx.fillStyle = '#4caf50';
+    ctx.font = 'bold 40px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(lastKey, canvas.width/2, canvas.height/2);
+    
+    ctx.fillStyle = '#ccc';
+    ctx.font = '12px sans-serif';
+    ctx.fillText('Key Pressed', canvas.width/2, canvas.height/2 + 20);
+  } else {
+    ctx.fillStyle = '#555';
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Waiting for input...', canvas.width/2, canvas.height/2);
+  }
+}
+
+// ============================
+// Обработка ввода
+// ============================
+const KEY_MAP = {
+  'ArrowUp': 'Up', 'ArrowDown': 'Down', 'ArrowLeft': 'Left', 'ArrowRight': 'Right',
+  'Enter': 'Fire', ' ': 'Fire',
+  'Backspace': 'SoftRight', 'Escape': 'SoftLeft',
+  'Digit1': 'Num1', 'Digit2': 'Num2', 'Digit3': 'Num3',
+  'Digit4': 'Num4', 'Digit5': 'Num5', 'Digit6': 'Num6',
+  'Digit7': 'Num7', 'Digit8': 'Num8', 'Digit9': 'Num9',
+  'Digit0': 'Num0',
+  'ShiftLeft': '*', '#': '#'
+};
+
+document.addEventListener('keydown', (e) => {
+  if (!isRunning) return;
+  
+  let mapped = KEY_MAP[e.code] || KEY_MAP[e.key];
+  
+  if (!mapped && e.key >= '0' && e.key <= '9') {
+    mapped = 'Num' + e.key;
+  }
+  if (e.key === '*') mapped = 'Star';
+  if (e.key === '#') mapped = 'Hash';
+
+  if (mapped) {
+    handleInput(mapped, true);
+    e.preventDefault();
+  }
+});
+
+document.addEventListener('keyup', (e) => {
+  let mapped = KEY_MAP[e.code] || KEY_MAP[e.key];
+  if (!mapped && e.key >= '0' && e.key <= '9') mapped = 'Num' + e.key;
+  if (e.key === '*') mapped = 'Star';
+  if (e.key === '#') mapped = 'Hash';
+
+  if (mapped) {
+    handleInput(mapped, false);
+  }
+});
+
+const buttons = document.querySelectorAll('[data-key]');
+buttons.forEach(btn => {
+  const key = btn.dataset.key;
+  
+  const press = (e) => {
+    e.preventDefault();
+    handleInput(key, true);
+    btn.style.transform = 'scale(0.9)';
+    btn.style.background = '#444';
+  };
+  
+  const release = (e) => {
+    e.preventDefault();
+    handleInput(key, false);
+    btn.style.transform = '';
+    btn.style.background = '';
+  };
+
+  btn.addEventListener('mousedown', press);
+  btn.addEventListener('mouseup', release);
+  btn.addEventListener('mouseleave', release);
+  
+  btn.addEventListener('touchstart', press, {passive: false});
+  btn.addEventListener('touchend', release);
+  btn.addEventListener('touchcancel', release);
+});
+
+function handleInput(keyCode, isPressed) {
+  if (isPressed) {
+    lastKey = keyCode;
+  } else {
+    if (lastKey === keyCode) lastKey = '';
+  }
+}
+
+// ============================
+// UI Функции
+// ============================
+function resetEmulation() {
+  isRunning = false;
+  cancelAnimationFrame(animationFrameId);
+  startScreen.classList.remove('hidden');
+  loadingScreen.classList.add('hidden');
+  currentGameName = '';
+  lastKey = '';
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0,0,canvas.width, canvas.height);
+  showToast('Эмулятор сброшен');
+}
+
+function toggleFullscreen() {
+  const elem = document.documentElement;
+  if (!document.fullscreenElement) {
+    elem.requestFullscreen().catch(err => {
+      showToast(`Ошибка: ${err.message}`);
+    });
+  } else {
+    document.exitFullscreen();
+  }
+}
+
+function showToast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  setTimeout(() => toastEl.classList.remove('show'), 3000);
+}
+
+init();
+
+</script>
+</body>
+</html>
