@@ -1,0 +1,3 @@
+[submodule "freej2me-web"]
+	path = freej2me-web
+	url = https://github.com/zb3/freej2me-web.git
